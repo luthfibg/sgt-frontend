@@ -1,139 +1,226 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+'use client'
 
-interface Product {
-    product_id: string;
-    product_title: string;
-    product_price: number;
-    product_description?: string;
-    product_image?: string;
-    product_category?: string;
-    created_timestamp: string;
-    updated_timestamp: string;
-}
+import React, { useState } from 'react';
+import { Flex, Button, Table, message, Modal, Form, Input, InputNumber, Select, Upload } from 'antd';
+import { useProducts } from '@/app/lib/hooks/useProducts';
+import { getProductColumns } from '@/app/lib/configs/productTableConfig';
+import { Product } from '@/app/lib/types/products';
+import { PlusOutlined } from '@ant-design/icons';
 
-interface ProductListParams {
-    page: number; // Current page number
-    limit: number; // Items per page
-    offset: number; // Calculate from page and limit
-    search?: string; // Search term
-}
+const { TextArea } = Input;
+
+const normFile = (e: any) => {
+  if (Array.isArray(e)) {
+    return e;
+  }
+  return e?.fileList;
+};
 
 const ProductPage = () => {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [singleProduct, setSingleProduct] = useState<Product | null>(null);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
+    const { products, loading, error, deleteProduct } = useProducts();
+    const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+    const [isViewModalVisible, setIsViewModalVisible] = useState(false);
+    const [open, setOpen] = useState(false);
 
-    const [newProductTitle, setNewProductTitle] = useState('');
-    const [newProductPrice, setNewProductPrice] = useState(0);
-
-    const [updateProductId, setUpdateProductId] = useState('');
-    const [updateProductTitle, setUpdateProductTitle] = useState('');
-    const [updateProductPrice, setUpdateProductPrice] = useState(0);
-
-    // Fetch all products
-    const fetchAllProducts = async () => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const response = await axios.get('/api/products');
-            setProducts(response.data);
-        } catch (err: any) {
-            console.error('Error fetching all products:', err);
-            setError(err.message || 'Failed to fetch products');
-        } finally {
-            setLoading(false);
-        }
+    // Handle view product
+    const handleView = (product: Product) => {
+        setSelectedProduct(product);
+        setIsViewModalVisible(true);
     };
 
-    // Fetch single product
-    const fetchSingleProduct =async (id:string) => {
-        try {
-            setLoading(true);
-            setError(null);
-
-            const response = await axios.get(`/api/product?product_id=${id}`);
-            setSingleProduct(response.data);
-        } catch (err: any) {
-            console.error('Error fetching single product:', err);
-            setError(err.message || 'Failed to fetch product');
-            setSingleProduct(null);
-        } finally {
-            setLoading(false);
-        }
+    // Handle edit product
+    const handleEdit = (product: Product) => {
+        // TODO: Implement edit modal or navigate to edit page
+        message.info(`Edit product: ${product.product_title}`);
+        console.log('Edit product:', product);
     };
 
-    // Create new product
-    const createProduct = async () => {
-        if (!newProductTitle || newProductPrice <= 0) {
-            alert('Please provide valid product title and price.');
-            return;
-        }
-        try {
-            setLoading(true);
-            setError(null);
-
-            const response = await axios.post('/api/product', {
-                product_title: newProductTitle,
-                product_price: newProductPrice,
-                product_description: 'A new product description',
-                product_image: 'https://example.com/image.jpg',
-                product_category: 'Electronics',
-                created_timestamp: new Date().toISOString(),
-                updated_timestamp: new Date().toISOString(),
-            });
-            console.log('Product created:', response.data);
-            setNewProductTitle('');
-            setNewProductPrice(0);
-        } catch (err: any) {
-            console.error('Error creating product:', err);
-            setError(err.message || 'Failed to create product');
-        } finally {
-            setLoading(false);
-        }
+    // Handle delete product
+    const handleDelete = (product: Product) => {
+        Modal.confirm({
+            title: 'Hapus Produk',
+            content: `Apakah Anda yakin ingin menghapus produk "${product.product_title}"?`,
+            okText: 'Ya, Hapus',
+            okType: 'danger',
+            cancelText: 'Batal',
+            onOk: async () => {
+                const success = await deleteProduct(product.product_id);
+                if (success) {
+                    message.success('Produk berhasil dihapus');
+                } else {
+                    message.error('Gagal menghapus produk');
+                }
+            },
+        });
     };
 
-    // Update existing product
-    const updateProduct = async () => {
-        if (!updateProductId || (!updateProductTitle && updateProductPrice === 0)) {
-            alert('Product ID and at least one field (title or price) to update are required.');
-            return;
-        }
-        try {
-            setLoading(true);
-            setError(null);
-
-            const response = await axios.put(`/api/product?product_id=${updateProductId}`, {
-                product_title: updateProductTitle || undefined,
-                product_price: updateProductPrice > 0 ? updateProductPrice : undefined,
-                product_description: 'An updated product description',
-                product_image: 'https://example.com/image.jpg',
-                product_category: 'Electronics',
-                updated_timestamp: new Date().toISOString(),
-            });
-            console.log('Product updated:', response.data);
-            setUpdateProductId('');
-            setUpdateProductTitle('');
-            setUpdateProductPrice(0);
-            await fetchAllProducts(); // Refresh product list
-        } catch (err: any) {
-            console.error('Error updating product:', err);
-            setError(err.message || 'Failed to update product');
-        } finally {
-            setLoading(false);
-        }
+    // Handle create product
+    const handleCreate = () => {
+        // TODO: Implement create modal or navigate to create page
+        message.info('Fitur tambah produk akan segera tersedia');
     };
 
-    useEffect(() => {
-        fetchAllProducts();
-    }, []);
+    // Show error message if exists
+    if (error) {
+        message.error(error);
+    }
 
-    if (loading) return <div>Loading...</div>;
-    if (error) return <div>Error: {error}</div>;
+    // Table columns configuration
+    const columns = getProductColumns({
+        onView: handleView,
+        onEdit: handleEdit,
+        onDelete: handleDelete,
+    });
 
     return (
-        <h1>This is the product page</h1>
+        <div style={{ padding: '24px' }}>
+            <Flex vertical gap="middle">
+                {/* Header Actions */}
+                <Flex justify="space-between" align="center">
+                    <h1 style={{ margin: 0 }}>Manajemen Produk</h1>
+                    <Button 
+                        type="primary" 
+                        size="large"
+                        onClick={() => setOpen(true)}
+                    >
+                        Tambah Produk
+                    </Button>
+                    <Modal
+                        title="Tambah Produk"
+                        centered
+                        open={open}
+                        onOk={() => setOpen(false)}
+                        onCancel={() => setOpen(false)}
+                        okText="Simpan"
+                        cancelText="Batal"
+                        width={{
+                        xs: '90%',
+                        sm: '80%',
+                        md: '70%',
+                        lg: '60%',
+                        xl: '50%',
+                        xxl: '40%',
+                        }}
+                    >
+                        <Form
+                            labelCol={{ span: 4 }}
+                            wrapperCol={{ span: 14 }}
+                            layout="horizontal"
+                            style={{ maxWidth: 600 }}
+                        >
+                            <Form.Item label="Nama Produk">
+                                <Input />
+                            </Form.Item>
+                            <Form.Item label="Harga">
+                                <InputNumber />
+                            </Form.Item>
+                            <Form.Item label="Deskripsi">
+                                <TextArea rows={4} />
+                            </Form.Item>
+                            <Form.Item label="Upload" valuePropName="fileList" getValueFromEvent={normFile}>
+                                <Upload action="/upload.do" listType="picture-card">
+                                    <button
+                                    style={{ color: 'inherit', cursor: 'inherit', border: 0, background: 'none' }}
+                                    type="button"
+                                    >
+                                    <PlusOutlined />
+                                    <div style={{ marginTop: 8 }}>Upload</div>
+                                    </button>
+                                </Upload>
+                            </Form.Item>
+                            <Form.Item label="Kategori">
+                                <Select>
+                                    <Select.Option value="category 1">Kategori 1</Select.Option>
+                                    <Select.Option value="category 2">Kategori 2</Select.Option>
+                                    <Select.Option value="category 3">Kategori 3</Select.Option>
+                                    <Select.Option value="category 4">Kategori 4</Select.Option>
+                                    <Select.Option value="category 5">Kategori 5</Select.Option>
+                                    <Select.Option value="category 6">Kategori 6</Select.Option>
+                                    <Select.Option value="category 7">Kategori 7</Select.Option>
+                                </Select>
+                            </Form.Item>
+                        </Form>
+                    </Modal>
+                </Flex>
+
+                {/* Products Table */}
+                <Table<Product>
+                    columns={columns}
+                    dataSource={products}
+                    rowKey="product_id"
+                    loading={loading}
+                    pagination={{
+                        showSizeChanger: true,
+                        showQuickJumper: true,
+                        showTotal: (total, range) => 
+                            `${range[0]}-${range[1]} dari ${total} produk`,
+                        pageSize: 10,
+                        pageSizeOptions: ['10', '20', '50', '100'],
+                    }}
+                    scroll={{ x: 1200 }}
+                    size="middle"
+                />
+
+                {/* View Product Modal */}
+                <Modal
+                    title={`Detail Produk: ${selectedProduct?.product_title}`}
+                    open={isViewModalVisible}
+                    onCancel={() => {
+                        setIsViewModalVisible(false);
+                        setSelectedProduct(null);
+                    }}
+                    footer={[
+                        <Button key="close" onClick={() => setIsViewModalVisible(false)}>
+                            Tutup
+                        </Button>
+                    ]}
+                    width={600}
+                >
+                    {selectedProduct && (
+                        <div style={{ padding: '16px 0' }}>
+                            <div style={{ marginBottom: '16px' }}>
+                                <strong>ID:</strong> {selectedProduct.product_id}
+                            </div>
+                            <div style={{ marginBottom: '16px' }}>
+                                <strong>Nama:</strong> {selectedProduct.product_title}
+                            </div>
+                            <div style={{ marginBottom: '16px' }}>
+                                <strong>Harga:</strong> Rp {selectedProduct.product_price.toLocaleString('id-ID')}
+                            </div>
+                            <div style={{ marginBottom: '16px' }}>
+                                <strong>Kategori:</strong> {selectedProduct.product_category || '-'}
+                            </div>
+                            <div style={{ marginBottom: '16px' }}>
+                                <strong>Deskripsi:</strong> {selectedProduct.product_description || '-'}
+                            </div>
+                            {selectedProduct.product_image && (
+                                <div style={{ marginBottom: '16px' }}>
+                                    <strong>Gambar:</strong>
+                                    <div style={{ marginTop: '8px' }}>
+                                        <img 
+                                            src={selectedProduct.product_image} 
+                                            alt={selectedProduct.product_title}
+                                            style={{ 
+                                                maxWidth: '100%', 
+                                                height: 'auto',
+                                                borderRadius: '8px'
+                                            }}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            <div style={{ marginBottom: '16px' }}>
+                                <strong>Dibuat:</strong> {new Date(selectedProduct.created_timestamp).toLocaleString('id-ID')}
+                            </div>
+                            <div>
+                                <strong>Diupdate:</strong> {new Date(selectedProduct.updated_timestamp).toLocaleString('id-ID')}
+                            </div>
+                        </div>
+                    )}
+                </Modal>
+            </Flex>
+        </div>
     );
-}
+};
+
+export default ProductPage;
