@@ -3,17 +3,27 @@ import { Product, CreateProductData, UpdateProductData } from '../types/products
 
 export class ProductApi {
     private static baseUrl = '/api';
+    private static baseUrlAPI = process.env.NEXT_PUBLIC_API_BASE_URL || '/api/web/v1';
 
     // Fetch all products
-    static async getAllProducts(): Promise<Product[]> {
+    static async getAllProducts(page = 1, limit = 10, search: string | null = null): Promise<{ data: Product[], pagination: any}> {
         try {
-            const response = await axios.get(`${this.baseUrl}/products`);
+            const params: any = { page, limit };
+            if (search) params.search = search;
+
+            const response = await axios.get(`${this.baseUrl}/products?page=${page}&limit=${limit}`, {params});
             
             // Handle different response formats
             if (Array.isArray(response.data)) {
-                return response.data;
-            } else if (response.data && Array.isArray(response.data.data)) {
-                return response.data.data;
+                return {
+                    data: response.data,
+                    pagination: null
+                };
+            } else if (response.data && Array.isArray(response.data.data) && response.data.pagination) {
+                return {
+                    data: response.data.data,
+                    pagination: response.data.pagination
+                };
             } else {
                 throw new Error('Invalid data format from API');
             }

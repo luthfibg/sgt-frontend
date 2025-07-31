@@ -4,19 +4,23 @@ import { ProductApi } from '../services/productApi';
 
 export const useProducts = () => {
     const [products, setProducts] = useState<Product[]>([]);
+    const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, total_pages: 1, search: null });
+
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     // Fetch all products
-    const fetchProducts = useCallback(async () => {
+    const fetchProducts = useCallback(async (page = 1, limit = 10, search: string | null = null) => {
         try {
             setLoading(true);
             setError(null);
-            const data = await ProductApi.getAllProducts();
-            setProducts(data);
+            const result = await ProductApi.getAllProducts(page, limit, search);
+            setProducts(result.data);
+            setPagination(result.pagination);
         } catch (err: any) {
             setError(err.message);
             setProducts([]);
+            setPagination({ page: 1, limit: 10, total: 0, total_pages: 1, search: null });
         } finally {
             setLoading(false);
         }
@@ -28,7 +32,7 @@ export const useProducts = () => {
             setLoading(true);
             setError(null);
             await ProductApi.createProduct(productData);
-            await fetchProducts(); // Refresh list
+            await fetchProducts(pagination.page, pagination.limit); // Refresh list
             return true;
         } catch (err: any) {
             setError(err.message);
@@ -44,7 +48,7 @@ export const useProducts = () => {
             setLoading(true);
             setError(null);
             await ProductApi.updateProduct(id, productData);
-            await fetchProducts(); // Refresh list
+            await fetchProducts(pagination.page, pagination.limit); // Refresh list
             return true;
         } catch (err: any) {
             setError(err.message);
@@ -53,6 +57,7 @@ export const useProducts = () => {
             setLoading(false);
         }
     }, [fetchProducts]);
+    
 
     // Delete product
     const deleteProduct = useCallback(async (id: string) => {
@@ -60,7 +65,7 @@ export const useProducts = () => {
             setLoading(true);
             setError(null);
             await ProductApi.deleteProduct(id);
-            await fetchProducts(); // Refresh list
+            await fetchProducts(pagination.page, pagination.limit); // Refresh list
             return true;
         } catch (err: any) {
             setError(err.message);
@@ -83,6 +88,7 @@ export const useProducts = () => {
         createProduct,
         updateProduct,
         deleteProduct,
+        pagination,
     };
 };
 

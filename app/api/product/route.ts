@@ -9,11 +9,12 @@ async function handleProxyRequest(req: NextRequest) {
     try {
         let requestBody: any = undefined;
 
-        if (req.method === 'POST' || req.method == 'PUT') {
+        // Hanya parse body untuk POST dan PUT
+        if (req.method === 'POST' || req.method === 'PUT') {
             try {
                 requestBody = await req.json();
             } catch (e) {
-                console.warn(`Could not parse request body as JSON for ${req.method} request to ${targetUrl}. It might be empty or a different content type.`, e);
+                console.warn(`Could not parse request body as JSON for ${req.method} request to ${targetUrl}`, e);
             }
         }
 
@@ -24,30 +25,18 @@ async function handleProxyRequest(req: NextRequest) {
             headers: {
                 'Content-Type': req.headers.get('Content-Type') || 'application/json',
             },
-            validateStatus: (status) => true, // Accept all status codes
+            validateStatus: () => true,
         });
 
         return NextResponse.json(response.data, {
             status: response.status,
-            headers: response.headers as HeadersInit,
         });
     } catch (error: any) {
         console.error(`Error proxying ${req.method} request to ${targetUrl}: `, error);
-
-        if (axios.isAxiosError(error) && error.response) {
-            return NextResponse.json(error.response.data, {
-                status: error.response.status,
-                headers: error.response.headers as HeadersInit,
-            });
-        } else if (axios.isAxiosError(error) && error.request) {
-            return NextResponse.json({ message: 'No response from backend server.' }, {
-                status: 502, // Bad Gateway
-            });
-        } else {
-            return NextResponse.json({ message: error.message || 'An unknown error occurred.' }, {
-                status: 500, // Internal Server Error
-            });
-        }
+        return NextResponse.json(
+            { message: error.message || 'An unknown error occurred.' },
+            { status: 500 }
+        );
     }
 }
 
@@ -60,5 +49,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
+    return handleProxyRequest(req);
+}
+
+export async function DELETE(req: NextRequest) {
     return handleProxyRequest(req);
 }
